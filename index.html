@@ -1,0 +1,305 @@
+<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دردشة نيون حقيقية</title>
+    
+    <!-- Firebase SDK (Version 8) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        body {
+            background-color: #05050a;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image: radial-gradient(circle at center, #0f0f24 0%, #05050a 100%);
+        }
+
+        .container {
+            width: 95%;
+            max-width: 450px;
+            height: 90vh;
+            max-height: 650px;
+            padding: 20px;
+            background: rgba(20, 20, 35, 0.8);
+            backdrop-filter: blur(15px);
+            border: 2px solid rgba(0, 242, 254, 0.3);
+            border-radius: 20px;
+            box-shadow: 0 0 35px rgba(0, 242, 254, 0.15);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .screen {
+            display: none;
+            height: 100%;
+        }
+
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #00f2fe;
+            text-shadow: 0 0 12px rgba(0, 242, 254, 0.6);
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(10, 10, 20, 0.8);
+            border: 1px solid #00f2fe;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 15px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: #ff007f;
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.5);
+        }
+
+        button {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #00f2fe, #4facfe);
+            border: none;
+            border-radius: 12px;
+            color: #05050a;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
+        }
+
+        button:hover {
+            box-shadow: 0 0 25px rgba(0, 242, 254, 0.8);
+            transform: translateY(-2px);
+        }
+
+        /* شاشة الدردشة */
+        #chatScreen {
+            justify-content: space-between;
+        }
+
+        .chat-header {
+            text-align: center;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(0, 242, 254, 0.2);
+            color: #ff007f;
+            text-shadow: 0 0 10px rgba(255, 0, 127, 0.6);
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .chat-box {
+            flex: 1;
+            overflow-y: auto;
+            margin: 15px 0;
+            padding-right: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .chat-box::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .chat-box::-webkit-scrollbar-thumb {
+            background: #00f2fe;
+            border-radius: 10px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 10px 14px;
+            border-radius: 15px;
+            font-size: 14px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        /* رسائلي */
+        .message.my-message {
+            align-self: flex-start;
+            background: rgba(0, 242, 254, 0.15);
+            border: 1px solid #00f2fe;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.2);
+            border-bottom-right-radius: 2px;
+        }
+
+        /* رسائل الشخص الآخر */
+        .message.other-message {
+            align-self: flex-end;
+            background: rgba(255, 0, 127, 0.15);
+            border: 1px solid #ff007f;
+            box-shadow: 0 0 10px rgba(255, 0, 127, 0.2);
+            border-bottom-left-radius: 2px;
+        }
+
+        .sender-name {
+            font-size: 11px;
+            margin-bottom: 3px;
+            font-weight: bold;
+        }
+
+        .my-message .sender-name { color: #00f2fe; }
+        .other-message .sender-name { color: #ff007f; }
+
+        .chat-input-area {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input-area input {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- شاشة التسجيل والغرفة -->
+        <div id="registerScreen" class="screen active">
+            <h2>انضمام للدردشة</h2>
+            <div class="input-group">
+                <input type="text" id="username" placeholder="أدخل اسمك...">
+            </div>
+            <div class="input-group">
+                <input type="text" id="roomCode" placeholder="رمز الغرفة (مثال: 1234)">
+            </div>
+            <button onclick="joinChat()">دخول للدردشة 💬</button>
+        </div>
+
+        <!-- شاشة الدردشة -->
+        <div id="chatScreen" class="screen">
+            <div class="chat-header" id="chatTitle">غرفة الدردشة</div>
+            
+            <div class="chat-box" id="chatBox">
+                <!-- الرسائل تظهر هنا -->
+            </div>
+
+            <div class="chat-input-area">
+                <input type="text" id="messageInput" placeholder="اكتب رسالتك..." onkeypress="handleKeyPress(event)">
+                <button onclick="sendMessage()">إرسال</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // إعدادات Firebase العامة
+        const firebaseConfig = {
+            databaseURL: "https://neon-chat-demo-default-rtdb.firebaseio.com"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        let currentUsername = "";
+        let currentRoom = "";
+
+        function joinChat() {
+            const nameInput = document.getElementById('username').value.trim();
+            const roomInput = document.getElementById('roomCode').value.trim();
+
+            if (!nameInput || !roomInput) {
+                alert('يرجى كتابة الاسم ورمز الغرفة أولاً!');
+                return;
+            }
+
+            currentUsername = nameInput;
+            currentRoom = roomInput;
+
+            document.getElementById('chatTitle').innerText = `غرفة: ${currentRoom} ✨`;
+
+            document.getElementById('registerScreen').classList.remove('active');
+            document.getElementById('chatScreen').classList.add('active');
+
+            // الاستماع للرسائل القادمة من الغرفة في الوقت الفعلي
+            listenForMessages();
+        }
+
+        function listenForMessages() {
+            const messagesRef = database.ref('rooms/' + currentRoom);
+            
+            messagesRef.on('child_added', (snapshot) => {
+                const data = snapshot.val();
+                displayMessage(data.sender, data.text);
+            });
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const messageText = input.value.trim();
+
+            if (!messageText) return;
+
+            // إرسال الرسالة إلى قاعدة البيانات
+            database.ref('rooms/' + currentRoom).push({
+                sender: currentUsername,
+                text: messageText,
+                timestamp: Date.now()
+            });
+
+            input.value = '';
+        }
+
+        function displayMessage(sender, text) {
+            const chatBox = document.getElementById('chatBox');
+            const msgDiv = document.createElement('div');
+            
+            // تمييز رسائلي عن رسائل الشخص الآخر
+            if (sender === currentUsername) {
+                msgDiv.className = 'message my-message';
+            } else {
+                msgDiv.className = 'message other-message';
+            }
+
+            const nameSpan = document.createElement('div');
+            nameSpan.className = 'sender-name';
+            nameSpan.innerText = sender;
+
+            const textSpan = document.createElement('div');
+            textSpan.innerText = text;
+
+            msgDiv.appendChild(nameSpan);
+            msgDiv.appendChild(textSpan);
+
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        }
+    </script>
+
+</body>
+</html>
